@@ -33,9 +33,10 @@ def createLattice(d):
                 lattice[(x,y,z)] = deme()
     return lattice
 
-def neighbor26((a,b,c)):
+def neighbor26((a,b,c)): 
     """
     Moore neighbourhood: 26 neighbour sites of (a,b,c).
+    Which was used in the 2017 Nature genetic paper.
     """
     neighbor = [(a-1, b-1, c-1),(a-1, b-1, c),(a-1, b-1, c+1),(a-1, b, c-1),(a-1, b, c),(a-1, b, c+1),(a-1, b+1, c-1),(a-1, b+1, c),(a-1, b+1, c+1),(a, b-1, c-1),(a, b-1, c),(a, b-1, c+1),(a, b, c-1),(a, b, c+1),(a, b+1, c-1),(a, b+1, c),(a, b+1, c+1),(a+1, b-1, c-1),(a+1, b-1, c),(a+1, b-1, c+1),(a+1, b, c-1),(a+1, b, c),(a+1, b, c+1),(a+1, b+1, c-1),(a+1, b+1, c),(a+1, b+1, c+1)]
     return neighbor
@@ -94,24 +95,34 @@ def initiateFirstDeme(maxsize,lineage,current_id):
     """
     The growth of the initial deme from a single transformed tumor cell via a random discrete-time birth-death process
 
+    INPUT
     maxsize - size limit of a deme
     lineage - a list that stores the lineage information of mutations
     current_id - the starting mutation ID
+    OUTPUT
+    neu_list - neutral cell list
+    adv_list - advantageous cell list
+    current_id - 
+    lineage -
     """
     neu_list = [str(current_id)]
     adv_list = []
     current_deme_size = 1
     while current_deme_size < maxsize:
-        n1,n2 = len(neu_list),len(adv_list)                         #n1 and n2 are the current number of neutral founder cells and advantageous cells, respectively
-        neu_divcells =  int(n1*birth_rate+1)                        #number of dividing cells of neutral lineage in this generation. The other cells will die in the next generation
+        n1,n2 = len(neu_list),len(adv_list)                         
+        #n1 and n2 are the current number of neutral founder cells and advantageous cells, respectively
+        neu_divcells =  int(n1*birth_rate+1)                        
+        #number of dividing cells of neutral lineage in this generation. The other cells will die in the next generation
         neu_list = random.sample(neu_list,neu_divcells)*2
         if n2 > 0:
-            adv_divcells = lowerORupper(n2*birth_rate*(1+s_coef))   #number of dividing cells of advantageous lineage in this generation        
+            adv_divcells = lowerORupper(n2*birth_rate*(1+s_coef))   
+            #number of dividing cells of advantageous lineage in this generation        
             adv_list = random.sample(adv_list,adv_divcells)*2
         n1,n2 = len(neu_list),len(adv_list)
         current_deme_size = n1+n2
         if n1 > 0:
-            new_mut1 = np.random.poisson(mut_rate*n1)               # the total number of mutations occurring in a generation follows Poission distribution with lambda=u*n
+            new_mut1 = np.random.poisson(mut_rate*n1)               
+            # the total number of mutations occurring in a generation follows Poission distribution with lambda=u*n
             mut_assig1 = Counter(np.random.choice(n1,new_mut1))
             for x1 in mut_assig1.keys():
                 nmut = mut_assig1[x1]
@@ -233,7 +244,8 @@ def seqProcessing(sp,sample_keys,mlineage,size_par,mean_depth,purity):
     for key in sample_keys:
         smuts = list(sp[key].background + sp[key].advant)
         all_cur_id += smuts
-    sample_size = 10000                                 # the number of cells for sequencing analysis
+#     sample_size = 10000                                 # the number of cells for sequencing analysis
+    sample_size = 100                                 # the number of cells for sequencing analysis
     sample_id = random.sample(all_cur_id,sample_size)
     id_count = Counter(sample_id)
     for x in id_count.keys():
@@ -371,8 +383,10 @@ adv_rate = float(sys.argv[3])       # the advantageous mutation rate at each cel
 s_coef = float(sys.argv[4])         # the selection coefficient
 repl = int(sys.argv[5])             # replication of simulation
 
+purity = 0.5                        # Tumor purity
 rd = 60                             # the side length of the 3D space
-final_tumor_size = pow(10,9)        # the number of cells in the final tumor
+# final_tumor_size = pow(10,9)        # the number of cells in the final tumor
+final_tumor_size = pow(10,5)        # the number of cells in the final tumor
 final_deme_number = final_tumor_size/deme_size    # the final number of demes in the tumor
 birth_rate = 0.55                   # the birth probability at each cell generation during tumor growth
 npub=100                            # the number of public mutation to be generated
@@ -434,7 +448,7 @@ while current_deme_number < final_deme_number:
                 break
     surface_deme_number = len(surface_keys)
     current_deme_number = len(current_keys)
-    deme_time_generation = 0
+    deme_time_generation += 1
     
 ####visulization of spatial clonal structure in the central plane###
 #central_plane = []
@@ -530,7 +544,7 @@ MAF_file.write("mut_id"+" "+"public"+" "+"depth1"+" "+"maf1"+" "+"depth2"+" "+"m
 MAF_file.write("\n")
 
 for k in range(0,npub):
-    pdepth,pmaf = pubMutGenerator(8,2,seq_depth)
+    pdepth,pmaf = pubMutGenerator(8,2,seq_depth, purity)
     MAF_file.write("0"+" "+"1"+" "+str(pdepth[0])+" "+str(pmaf[0])+" "+str(pdepth[1])+" "+str(pmaf[1])+" "+str(pdepth[2])+" "+str(pmaf[2])+" "+str(pdepth[3])+" "+str(pmaf[3])+" "+str(pdepth[4])+" "+str(pmaf[4])+" "+str(pdepth[5])+" "+str(pmaf[5])+" "+str(pdepth[6])+" "+str(pmaf[6])+" "+str(pdepth[7])+" "+str(pmaf[7]))
     MAF_file.write("\n")
 
