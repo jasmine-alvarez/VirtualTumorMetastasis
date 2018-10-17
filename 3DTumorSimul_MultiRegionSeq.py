@@ -479,15 +479,15 @@ def write_pub_maf(periphery, space, mutlineage, seq_depth, purity, file_name):
             quadrant8 += [pky]
 
     # Print out the number of demes
-    print "# of demes in the periphery=",len(periphery)
-    print "# of demes in quadrant1=",len(quadrant1)
-    print "# of demes in quadrant2=",len(quadrant2)
-    print "# of demes in quadrant3=",len(quadrant3)
-    print "# of demes in quadrant4=",len(quadrant4)
-    print "# of demes in quadrant5=",len(quadrant5)
-    print "# of demes in quadrant6=",len(quadrant6)
-    print "# of demes in quadrant7=",len(quadrant7)
-    print "# of demes in quadrant8=",len(quadrant8)
+#     print "# of demes in the periphery=",len(periphery)
+#     print "# of demes in quadrant1=",len(quadrant1)
+#     print "# of demes in quadrant2=",len(quadrant2)
+#     print "# of demes in quadrant3=",len(quadrant3)
+#     print "# of demes in quadrant4=",len(quadrant4)
+#     print "# of demes in quadrant5=",len(quadrant5)
+#     print "# of demes in quadrant6=",len(quadrant6)
+#     print "# of demes in quadrant7=",len(quadrant7)
+#     print "# of demes in quadrant8=",len(quadrant8)
 
     #p4samples = localSampling(quadrant1,8,1)
     # multisample == "8samples":
@@ -573,7 +573,7 @@ purity = 0.5                        # Tumor purity
 rd = 60                             # the side length of the 3D space
 meta_init_primary_size = pow(10, 4) # The deme size of primary when metastasis happend
 # final_tumor_size = pow(10,9)        # the number of cells in the final tumor
-final_tumor_size = pow(10,5)        # the number of cells in the final tumor
+final_tumor_size = pow(10,7)        # the number of cells in the final tumor
 final_deme_number = final_tumor_size/deme_size    # the final number of demes in the tumor
 birth_rate = 0.55                   # the birth probability at each cell generation during tumor growth
 npub=100                            # the number of public mutation to be generated
@@ -602,14 +602,12 @@ write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth, output_
 
 
 ## Metastasis Tumor
-# Init the first deme 
-print meta_deme.present
-print meta_deme.background
-print meta_deme.advant
-print mut_id 
-print len(mutlineage)
+# Prepare metastasis cells
+meta_first_neu = meta_deme.background 
+meta_first_adv = meta_deme.advant 
+
 # Grow
-meta_space, meta_current_keys, mut_id, mutlineage, meta_current_deme_number, meta_deme_time_generation = grow_tumor(meta_deme.background, meta_deme.advant, mut_id, mutlineage, rd, final_deme_number)
+meta_space, meta_current_keys, mut_id, mutlineage, meta_current_deme_number, meta_deme_time_generation = grow_tumor(meta_first_neu, meta_first_adv, mut_id, mutlineage, rd, final_deme_number)
 
 # Get periphery locations 
 meta_periphery = get_periphery(meta_space, meta_current_keys)
