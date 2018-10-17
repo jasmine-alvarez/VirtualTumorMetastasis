@@ -383,7 +383,10 @@ def get_periphery(space, current_keys):
                 break
     return periphery
 
-def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number):   # the mutlineage should be global, need return!
+def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, meta_init_primary_size = 0):   
+    """
+    Grow the tumor, if the meta_init_primary_size == 0, no meta init
+    """
     space = createLattice(rd)
     space[(rd,rd,rd)] = deme()                      #initiate the space with a empty deme in the center site (rd,rd,rd)
     space[(rd,rd,rd)].present = 1
@@ -394,6 +397,9 @@ def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number):
     surface_keys = [(rd,rd,rd)]
     surface_deme_number =1
     deme_time_generation = 0
+    sampled = False
+    if (meta_init_primary_size == 0): 
+        sampled = True
 
     while current_deme_number < final_deme_number:
         new_keys = []
@@ -408,7 +414,8 @@ def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number):
                         empty_sites += [key]
                 if len(empty_sites) > 0:
                     rand_prob = random.random()
-                    if rand_prob < 1-math.exp(-len(empty_sites)*0.25): # the probability that a deme is chosen for expansion and split in a given step is proportional to the # of empty neighbor sites
+                    # the probability that a deme is chosen for expansion and split in a given step is proportional to the # of empty neighbor sites
+                    if rand_prob < 1-math.exp(-len(empty_sites)*0.25): 
                         pre_neu = list(space[(rx,ry,rz)].background)
                         pre_advant = list(space[(rx,ry,rz)].advant)
                         post_neu1,post_neu2,post_adv1,post_adv2,mut_id,mutlineage = demeGrowthFission(pre_neu,pre_advant,mutlineage,mut_id,current_deme_number)
@@ -434,9 +441,19 @@ def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number):
         surface_deme_number = len(surface_keys)
         current_deme_number = len(current_keys)
         deme_time_generation += 1  # plus 1 after generation
-    return space, current_keys, mutlineage, current_deme_number, deme_time_generation
+        if (not sampled and current_deme_number >= meta_init_primary_size):
+            # Set it is already sampled
+            sampled = True
+            meta_key = random.choice(surface_keys)
+            meta_deme = space[meta_key]
 
-def write_pub_maf(periphery, space, mutlineage, seq_depth, purity):
+
+    if (meta_init_primary_size == 0):
+        return space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation
+    else:
+        return space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation, meta_deme 
+
+def write_pub_maf(periphery, space, mutlineage, seq_depth, purity, file_name):
     ## Sampleing 8 samples
     # Surface demes in the eight quadrants
     quadrant1,quadrant2,quadrant3,quadrant4,quadrant5,quadrant6,quadrant7,quadrant8 = [],[],[],[],[],[],[],[] 
@@ -504,7 +521,7 @@ def write_pub_maf(periphery, space, mutlineage, seq_depth, purity):
     maf7 = seqProcessing(space,tissue7,mutlineage,2,seq_depth,1)
     maf8 = seqProcessing(space,tissue8,mutlineage,2,seq_depth,1)
 
-    MAF_file = open("simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+".txt","w")
+    MAF_file = open(file_name, "w")
     MAF_file.write("mut_id"+" "+"public"+" "+"depth1"+" "+"maf1"+" "+"depth2"+" "+"maf2"+" "+"depth3"+" "+"maf3"+" "+"depth4"+" "+"maf4"+" "+"depth5"+" "+"maf5"+" "+"depth6"+" "+"maf6"+" "+"depth7"+" "+"maf7"+" "+"depth8"+" "+"maf8")
     MAF_file.write("\n")
 
@@ -512,9 +529,10 @@ def write_pub_maf(periphery, space, mutlineage, seq_depth, purity):
         pdepth,pmaf = pubMutGenerator(8,2,seq_depth, purity)
         MAF_file.write("0"+" "+"1"+" "+str(pdepth[0])+" "+str(pmaf[0])+" "+str(pdepth[1])+" "+str(pmaf[1])+" "+str(pdepth[2])+" "+str(pmaf[2])+" "+str(pdepth[3])+" "+str(pmaf[3])+" "+str(pdepth[4])+" "+str(pmaf[4])+" "+str(pdepth[5])+" "+str(pmaf[5])+" "+str(pdepth[6])+" "+str(pmaf[6])+" "+str(pdepth[7])+" "+str(pmaf[7]))
         MAF_file.write("\n")
+    MAF_file.close()
     return maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8
 
-def write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth):
+def write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth, file_name):
     muts_all = sets.Set(maf1.keys()) | sets.Set(maf2.keys()) | sets.Set(maf3.keys()) | sets.Set(maf4.keys()) |sets.Set(maf5.keys()) | sets.Set(maf6.keys()) |sets.Set(maf7.keys()) | sets.Set(maf8.keys())
 
     absent1 = muts_all-sets.Set(maf1.keys())
@@ -535,13 +553,16 @@ def write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth):
     maf7 = missingDepth(maf7,absent7,seq_depth)
     maf8 = missingDepth(maf8,absent8,seq_depth)
 
+    MAF_file = open(file_name, "a")
     for mt in list(muts_all):
         MAF_file.write(str(mt)+" "+"0"+" "+str(maf1[mt][0])+" "+str(maf1[mt][1])+" "+str(maf2[mt][0])+" "+str(maf2[mt][1])+" "+str(maf3[mt][0])+" "+str(maf3[mt][1])+" "+str(maf4[mt][0])+" "+str(maf4[mt][1])+" "+str(maf5[mt][0])+" "+str(maf5[mt][1])+" "+str(maf6[mt][0])+" "+str(maf6[mt][1])+" "+str(maf7[mt][0])+" "+str(maf7[mt][1])+" "+str(maf8[mt][0])+" "+str(maf8[mt][1]))
         MAF_file.write("\n")
+    MAF_file.close()
 
 
-#############main script to simulate a tumor and multi-region sequencing data#########
-###parameter intiation###
+
+############# Main script to simulate a tumor and multi-region sequencing data #########
+### Parameter intiation ###
 deme_size = int(sys.argv[1])        # the deme size
 mut_rate = float(sys.argv[2])       # the neutral mutation rate at whole exonic region
 adv_rate = float(sys.argv[3])       # the advantageous mutation rate at each cell generation
@@ -550,6 +571,7 @@ repl = int(sys.argv[5])             # replication of simulation
 
 purity = 0.5                        # Tumor purity
 rd = 60                             # the side length of the 3D space
+meta_init_primary_size = pow(10, 4) # The deme size of primary when metastasis happend
 # final_tumor_size = pow(10,9)        # the number of cells in the final tumor
 final_tumor_size = pow(10,5)        # the number of cells in the final tumor
 final_deme_number = final_tumor_size/deme_size    # the final number of demes in the tumor
@@ -562,20 +584,41 @@ mut_id = 0
 mutlineage = ['0']                  # the lineage tracer
 ######################################################################################
 
-first_neu,first_adv,mut_id,mutlineage = initiateFirstDeme(deme_size,mutlineage,mut_id)  #the growth of the fisrt deme from single transformed cell
 
-## Grow Primary Tumor
-# init the first deme
-space, current_keys, mutlineage, current_deme_number, deme_time_generation = grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number)
+## Primary Tumor
+# The growth of the fisrt deme from single transformed cell
+first_neu,first_adv,mut_id,mutlineage = initiateFirstDeme(deme_size,mutlineage,mut_id)  
+# Grow
+space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation, meta_deme = grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, meta_init_primary_size)
+
 # Get periphery locations
 periphery = get_periphery(space, current_keys)
-# Output 
 
-#################################################
-# Output simulative seq data
-#################################################
-maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8 = write_pub_maf(periphery, space, mutlineage, seq_depth, purity)
-write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth)
+# Output 
+sample_type = "primary"
+output_filename = "simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"_"+sample_type+".txt"
+maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8 = write_pub_maf(periphery, space, mutlineage, seq_depth, purity, output_filename)
+write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth, output_filename)
+
+
+## Metastasis Tumor
+# Init the first deme 
+print meta_deme.present
+print meta_deme.background
+print meta_deme.advant
+print mut_id 
+print len(mutlineage)
+# Grow
+meta_space, meta_current_keys, mut_id, mutlineage, meta_current_deme_number, meta_deme_time_generation = grow_tumor(meta_deme.background, meta_deme.advant, mut_id, mutlineage, rd, final_deme_number)
+
+# Get periphery locations 
+meta_periphery = get_periphery(meta_space, meta_current_keys)
+
+# Output
+sample_type = "metastasis"
+meta_output_filename = "simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"_"+sample_type+".txt"
+maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8 = write_pub_maf(meta_periphery, meta_space, mutlineage, seq_depth, purity, meta_output_filename)
+write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth, meta_output_filename)
 
 
 ####visulization of spatial clonal structure in the central plane###
