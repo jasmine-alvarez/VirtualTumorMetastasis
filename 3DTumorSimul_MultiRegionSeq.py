@@ -373,6 +373,171 @@ def missingDepth(vafdata,absent_muts,mean_depth):
         vafdata[str(x)] = (missing_depth,0)
     return vafdata
 
+def get_periphery(space, current_keys):
+    periphery = [] # the locations of periheral demes on tumor surface
+    for key in current_keys:
+        neikeys = neighbor26(key)
+        for z in neikeys:
+            if space[z].present == 0:
+                periphery +=[key]
+                break
+    return periphery
+
+def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number):   # the mutlineage should be global, need return!
+    space = createLattice(rd)
+    space[(rd,rd,rd)] = deme()                      #initiate the space with a empty deme in the center site (rd,rd,rd)
+    space[(rd,rd,rd)].present = 1
+    space[(rd,rd,rd)].background = list(first_neu)
+    space[(rd,rd,rd)].advant = list(first_adv)
+    current_keys = [(rd,rd,rd)]
+    current_deme_number =1                                 #current deme number
+    surface_keys = [(rd,rd,rd)]
+    surface_deme_number =1
+    deme_time_generation = 0
+
+    while current_deme_number < final_deme_number:
+        new_keys = []
+        for w in range(0,surface_deme_number):             # deme expansion occurs in the surface of a tumor
+            ckey = random.choice(current_keys)
+            if space[ckey].present == 1:
+                rx,ry,rz = ckey[0],ckey[1],ckey[2]
+                nei_sites = neighbor26((rx,ry,rz))  # neighbor sites of (rx,ry,rz)
+                empty_sites = []                    # the empty neighbor sites
+                for key in nei_sites:
+                    if space[key].present == 0:
+                        empty_sites += [key]
+                if len(empty_sites) > 0:
+                    rand_prob = random.random()
+                    if rand_prob < 1-math.exp(-len(empty_sites)*0.25): # the probability that a deme is chosen for expansion and split in a given step is proportional to the # of empty neighbor sites
+                        pre_neu = list(space[(rx,ry,rz)].background)
+                        pre_advant = list(space[(rx,ry,rz)].advant)
+                        post_neu1,post_neu2,post_adv1,post_adv2,mut_id,mutlineage = demeGrowthFission(pre_neu,pre_advant,mutlineage,mut_id,current_deme_number)
+                        nextkey = random.choice(empty_sites)
+                        space[ckey].background = list(post_neu1)
+                        space[ckey].advant = list(post_adv1)
+                        space[nextkey].background = list(post_neu2)
+                        space[nextkey].advant = list(post_adv2)
+                        space[nextkey].present = 1
+                        current_keys += [nextkey]
+                        current_deme_number += 1
+                        new_keys += [nextkey]
+        ###update surface###
+        surface_update = list(surface_keys+new_keys)
+        surface_keys = []
+        for fkey in surface_update:
+            neisites = neighbor26(fkey)
+            random.shuffle(neisites)
+            for key in neisites:
+                if space[key].present == 0:
+                    surface_keys += [fkey]
+                    break
+        surface_deme_number = len(surface_keys)
+        current_deme_number = len(current_keys)
+        deme_time_generation += 1  # plus 1 after generation
+    return space, current_keys, mutlineage, current_deme_number, deme_time_generation
+
+def write_pub_maf(periphery, space, mutlineage, seq_depth, purity):
+    ## Sampleing 8 samples
+    # Surface demes in the eight quadrants
+    quadrant1,quadrant2,quadrant3,quadrant4,quadrant5,quadrant6,quadrant7,quadrant8 = [],[],[],[],[],[],[],[] 
+
+    # Get the location key in the periphery
+    for pky in periphery:
+        if pky[0] > rd and pky[1] > rd and pky[2] > rd:
+            quadrant1 += [pky]
+        if pky[0] < rd and pky[1] < rd and pky[2] < rd:
+            quadrant2 += [pky]
+        if pky[0] < rd and pky[1] > rd and pky[2] > rd:
+            quadrant3 += [pky]
+        if pky[0] > rd and pky[1] < rd and pky[2] < rd:
+            quadrant4 += [pky]
+        
+        if pky[0] > rd and pky[1] > rd and pky[2] < rd:
+            quadrant5 += [pky]
+        if pky[0] < rd and pky[1] < rd and pky[2] > rd:
+            quadrant6 += [pky]
+        if pky[0] > rd and pky[1] < rd and pky[2] > rd:
+            quadrant7 += [pky]
+        if pky[0] < rd and pky[1] > rd and pky[2] < rd:
+            quadrant8 += [pky]
+
+    # Print out the number of demes
+    print "# of demes in the periphery=",len(periphery)
+    print "# of demes in quadrant1=",len(quadrant1)
+    print "# of demes in quadrant2=",len(quadrant2)
+    print "# of demes in quadrant3=",len(quadrant3)
+    print "# of demes in quadrant4=",len(quadrant4)
+    print "# of demes in quadrant5=",len(quadrant5)
+    print "# of demes in quadrant6=",len(quadrant6)
+    print "# of demes in quadrant7=",len(quadrant7)
+    print "# of demes in quadrant8=",len(quadrant8)
+
+    #p4samples = localSampling(quadrant1,8,1)
+    # multisample == "8samples":
+    locat1 = random.choice(quadrant1) # location of bulk tissue1
+    locat2 = random.choice(quadrant2)
+    locat3 = random.choice(quadrant3)
+    locat4 = random.choice(quadrant4)
+    locat5 = random.choice(quadrant5)
+    locat6 = random.choice(quadrant6)
+    locat7 = random.choice(quadrant7)
+    locat8 = random.choice(quadrant8)
+
+    sample8 = [locat1,locat2,locat3,locat4,locat5,locat6,locat7,locat8]
+
+    tissue1 = bulkTissueSampling(space,sample8[0],3)
+    tissue2 = bulkTissueSampling(space,sample8[1],3)
+    tissue3 = bulkTissueSampling(space,sample8[2],3)
+    tissue4 = bulkTissueSampling(space,sample8[3],3)
+    tissue5 = bulkTissueSampling(space,sample8[4],3)
+    tissue6 = bulkTissueSampling(space,sample8[5],3)
+    tissue7 = bulkTissueSampling(space,sample8[6],3)
+    tissue8 = bulkTissueSampling(space,sample8[7],3)
+    print "Average # of demes in the 8 bulks",(len(tissue1)+len(tissue2)+len(tissue3)+len(tissue4)+len(tissue5)+len(tissue6)+len(tissue7)+len(tissue8))/8
+
+    maf1 = seqProcessing(space,tissue1,mutlineage,2,seq_depth,1)
+    maf2 = seqProcessing(space,tissue2,mutlineage,2,seq_depth,1)
+    maf3 = seqProcessing(space,tissue3,mutlineage,2,seq_depth,1)
+    maf4 = seqProcessing(space,tissue4,mutlineage,2,seq_depth,1)
+    maf5 = seqProcessing(space,tissue5,mutlineage,2,seq_depth,1)
+    maf6 = seqProcessing(space,tissue6,mutlineage,2,seq_depth,1)
+    maf7 = seqProcessing(space,tissue7,mutlineage,2,seq_depth,1)
+    maf8 = seqProcessing(space,tissue8,mutlineage,2,seq_depth,1)
+
+    MAF_file = open("simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+".txt","w")
+    MAF_file.write("mut_id"+" "+"public"+" "+"depth1"+" "+"maf1"+" "+"depth2"+" "+"maf2"+" "+"depth3"+" "+"maf3"+" "+"depth4"+" "+"maf4"+" "+"depth5"+" "+"maf5"+" "+"depth6"+" "+"maf6"+" "+"depth7"+" "+"maf7"+" "+"depth8"+" "+"maf8")
+    MAF_file.write("\n")
+
+    for k in range(0,npub):
+        pdepth,pmaf = pubMutGenerator(8,2,seq_depth, purity)
+        MAF_file.write("0"+" "+"1"+" "+str(pdepth[0])+" "+str(pmaf[0])+" "+str(pdepth[1])+" "+str(pmaf[1])+" "+str(pdepth[2])+" "+str(pmaf[2])+" "+str(pdepth[3])+" "+str(pmaf[3])+" "+str(pdepth[4])+" "+str(pmaf[4])+" "+str(pdepth[5])+" "+str(pmaf[5])+" "+str(pdepth[6])+" "+str(pmaf[6])+" "+str(pdepth[7])+" "+str(pmaf[7]))
+        MAF_file.write("\n")
+    return maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8
+
+def write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth):
+    muts_all = sets.Set(maf1.keys()) | sets.Set(maf2.keys()) | sets.Set(maf3.keys()) | sets.Set(maf4.keys()) |sets.Set(maf5.keys()) | sets.Set(maf6.keys()) |sets.Set(maf7.keys()) | sets.Set(maf8.keys())
+
+    absent1 = muts_all-sets.Set(maf1.keys())
+    absent2 = muts_all-sets.Set(maf2.keys())
+    absent3 = muts_all-sets.Set(maf3.keys())
+    absent4 = muts_all-sets.Set(maf4.keys())
+    absent5 = muts_all-sets.Set(maf5.keys())
+    absent6 = muts_all-sets.Set(maf6.keys())
+    absent7 = muts_all-sets.Set(maf7.keys())
+    absent8 = muts_all-sets.Set(maf8.keys())
+
+    maf1 = missingDepth(maf1,absent1,seq_depth)
+    maf2 = missingDepth(maf2,absent2,seq_depth)
+    maf3 = missingDepth(maf3,absent3,seq_depth)
+    maf4 = missingDepth(maf4,absent4,seq_depth)
+    maf5 = missingDepth(maf5,absent5,seq_depth)
+    maf6 = missingDepth(maf6,absent6,seq_depth)
+    maf7 = missingDepth(maf7,absent7,seq_depth)
+    maf8 = missingDepth(maf8,absent8,seq_depth)
+
+    for mt in list(muts_all):
+        MAF_file.write(str(mt)+" "+"0"+" "+str(maf1[mt][0])+" "+str(maf1[mt][1])+" "+str(maf2[mt][0])+" "+str(maf2[mt][1])+" "+str(maf3[mt][0])+" "+str(maf3[mt][1])+" "+str(maf4[mt][0])+" "+str(maf4[mt][1])+" "+str(maf5[mt][0])+" "+str(maf5[mt][1])+" "+str(maf6[mt][0])+" "+str(maf6[mt][1])+" "+str(maf7[mt][0])+" "+str(maf7[mt][1])+" "+str(maf8[mt][0])+" "+str(maf8[mt][1]))
+        MAF_file.write("\n")
 
 
 #############main script to simulate a tumor and multi-region sequencing data#########
@@ -399,57 +564,20 @@ mutlineage = ['0']                  # the lineage tracer
 
 first_neu,first_adv,mut_id,mutlineage = initiateFirstDeme(deme_size,mutlineage,mut_id)  #the growth of the fisrt deme from single transformed cell
 
-space = createLattice(rd)
-space[(rd,rd,rd)] = deme()                      #initiate the space with a empty deme in the center site (rd,rd,rd)
-space[(rd,rd,rd)].present = 1
-space[(rd,rd,rd)].background = list(first_neu)
-space[(rd,rd,rd)].advant = list(first_adv)
-current_keys = [(rd,rd,rd)]
-current_deme_number =1                                 #current deme number
-surface_keys = [(rd,rd,rd)]
-surface_deme_number =1
-deme_time_generation = 0
+## Grow Primary Tumor
+# init the first deme
+space, current_keys, mutlineage, current_deme_number, deme_time_generation = grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number)
+# Get periphery locations
+periphery = get_periphery(space, current_keys)
+# Output 
 
-while current_deme_number < final_deme_number:
-    new_keys = []
-    for w in range(0,surface_deme_number):             # deme expansion occurs in the surface of a tumor
-        ckey = random.choice(current_keys)
-        if space[ckey].present == 1:
-            rx,ry,rz = ckey[0],ckey[1],ckey[2]
-            nei_sites = neighbor26((rx,ry,rz))  # neighbor sites of (rx,ry,rz)
-            empty_sites = []                    # the empty neighbor sites
-            for key in nei_sites:
-                if space[key].present == 0:
-                    empty_sites += [key]
-            if len(empty_sites) > 0:
-                rand_prob = random.random()
-                if rand_prob < 1-math.exp(-len(empty_sites)*0.25): # the probability that a deme is chosen for expansion and split in a given step is proportional to the # of empty neighbor sites
-                    pre_neu = list(space[(rx,ry,rz)].background)
-                    pre_advant = list(space[(rx,ry,rz)].advant)
-                    post_neu1,post_neu2,post_adv1,post_adv2,mut_id,mutlineage = demeGrowthFission(pre_neu,pre_advant,mutlineage,mut_id,current_deme_number)
-                    nextkey = random.choice(empty_sites)
-                    space[ckey].background = list(post_neu1)
-                    space[ckey].advant = list(post_adv1)
-                    space[nextkey].background = list(post_neu2)
-                    space[nextkey].advant = list(post_adv2)
-                    space[nextkey].present = 1
-                    current_keys += [nextkey]
-                    current_deme_number += 1
-                    new_keys += [nextkey]
-    ###update surface###
-    surface_update = list(surface_keys+new_keys)
-    surface_keys = []
-    for fkey in surface_update:
-        neisites = neighbor26(fkey)
-        random.shuffle(neisites)
-        for key in neisites:
-            if space[key].present == 0:
-                surface_keys += [fkey]
-                break
-    surface_deme_number = len(surface_keys)
-    current_deme_number = len(current_keys)
-    deme_time_generation += 1
-    
+#################################################
+# Output simulative seq data
+#################################################
+maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8 = write_pub_maf(periphery, space, mutlineage, seq_depth, purity)
+write_all_maf(maf1, maf2, maf3, maf4, maf5, maf6, maf7, maf8, seq_depth)
+
+
 ####visulization of spatial clonal structure in the central plane###
 #central_plane = []
 #for key in current_keys:
@@ -457,7 +585,6 @@ while current_deme_number < final_deme_number:
 #        central_plane += [key]
 
 #print "# of demes on the central plane=",len(central_plane)
-
 #map_file = open("CloneMap3D_peri_u"+str(mu)+"_birth_rate"+str(birth_rate)+"_s"+str(s_coef)+"_"+str(repl)+".txt","w")
 #map_file.write("x"+" "+"y"+" "+"z"+" "+"lineage")
 #map_file.write("\n")
@@ -466,109 +593,4 @@ while current_deme_number < final_deme_number:
 #    cur_lineage = lineageDashLink(sorted(cur_muts))
 #    map_file.write(str(key[0])+" "+str(key[1])+" "+str(key[2])+" "+str(cur_lineage))
 #    map_file.write("\n")
-
-
-periphery = [] # the locations of periheral demes on tumor surface
-for key in current_keys:
-    neikeys = neighbor26(key)
-    for z in neikeys:
-        if space[z].present == 0:
-            periphery +=[key]
-            break
-
-
-quadrant1,quadrant2,quadrant3,quadrant4,quadrant5,quadrant6,quadrant7,quadrant8 = [],[],[],[],[],[],[],[] #surface demes in the eight quadrants
-for pky in periphery:
-    if pky[0] > rd and pky[1] > rd and pky[2] > rd:
-        quadrant1 += [pky]
-    if pky[0] < rd and pky[1] < rd and pky[2] < rd:
-        quadrant2 += [pky]
-    if pky[0] < rd and pky[1] > rd and pky[2] > rd:
-        quadrant3 += [pky]
-    if pky[0] > rd and pky[1] < rd and pky[2] < rd:
-        quadrant4 += [pky]
-    
-    if pky[0] > rd and pky[1] > rd and pky[2] < rd:
-        quadrant5 += [pky]
-    if pky[0] < rd and pky[1] < rd and pky[2] > rd:
-        quadrant6 += [pky]
-    if pky[0] > rd and pky[1] < rd and pky[2] > rd:
-        quadrant7 += [pky]
-    if pky[0] < rd and pky[1] > rd and pky[2] < rd:
-        quadrant8 += [pky]
-
-#print "# of demes in the periphery=",len(periphery)
-#print "# of demes in quadrant1=",len(quadrant1)
-#print "# of demes in quadrant2=",len(quadrant2)
-#print "# of demes in quadrant3=",len(quadrant3)
-#print "# of demes in quadrant4=",len(quadrant4)
-#print "# of demes in quadrant5=",len(quadrant5)
-#print "# of demes in quadrant6=",len(quadrant6)
-#print "# of demes in quadrant7=",len(quadrant7)
-#print "# of demes in quadrant8=",len(quadrant8)
-#print
-
-#p4samples = localSampling(quadrant1,8,1)
-###multisample == "8samples":
-locat1 = random.choice(quadrant1) # location of bulk tissue1
-locat2 = random.choice(quadrant2)
-locat3 = random.choice(quadrant3)
-locat4 = random.choice(quadrant4)
-locat5 = random.choice(quadrant5)
-locat6 = random.choice(quadrant6)
-locat7 = random.choice(quadrant7)
-locat8 = random.choice(quadrant8)
-sample8 = [locat1,locat2,locat3,locat4,locat5,locat6,locat7,locat8]
-
-tissue1 = bulkTissueSampling(space,sample8[0],3)
-tissue2 = bulkTissueSampling(space,sample8[1],3)
-tissue3 = bulkTissueSampling(space,sample8[2],3)
-tissue4 = bulkTissueSampling(space,sample8[3],3)
-tissue5 = bulkTissueSampling(space,sample8[4],3)
-tissue6 = bulkTissueSampling(space,sample8[5],3)
-tissue7 = bulkTissueSampling(space,sample8[6],3)
-tissue8 = bulkTissueSampling(space,sample8[7],3)
-print "Average # of demes in the 8 bulks",(len(tissue1)+len(tissue2)+len(tissue3)+len(tissue4)+len(tissue5)+len(tissue6)+len(tissue7)+len(tissue8))/8
-
-maf1 = seqProcessing(space,tissue1,mutlineage,2,seq_depth,1)
-maf2 = seqProcessing(space,tissue2,mutlineage,2,seq_depth,1)
-maf3 = seqProcessing(space,tissue3,mutlineage,2,seq_depth,1)
-maf4 = seqProcessing(space,tissue4,mutlineage,2,seq_depth,1)
-maf5 = seqProcessing(space,tissue5,mutlineage,2,seq_depth,1)
-maf6 = seqProcessing(space,tissue6,mutlineage,2,seq_depth,1)
-maf7 = seqProcessing(space,tissue7,mutlineage,2,seq_depth,1)
-maf8 = seqProcessing(space,tissue8,mutlineage,2,seq_depth,1)
-
-MAF_file = open("simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+".txt","w")
-MAF_file.write("mut_id"+" "+"public"+" "+"depth1"+" "+"maf1"+" "+"depth2"+" "+"maf2"+" "+"depth3"+" "+"maf3"+" "+"depth4"+" "+"maf4"+" "+"depth5"+" "+"maf5"+" "+"depth6"+" "+"maf6"+" "+"depth7"+" "+"maf7"+" "+"depth8"+" "+"maf8")
-MAF_file.write("\n")
-
-for k in range(0,npub):
-    pdepth,pmaf = pubMutGenerator(8,2,seq_depth, purity)
-    MAF_file.write("0"+" "+"1"+" "+str(pdepth[0])+" "+str(pmaf[0])+" "+str(pdepth[1])+" "+str(pmaf[1])+" "+str(pdepth[2])+" "+str(pmaf[2])+" "+str(pdepth[3])+" "+str(pmaf[3])+" "+str(pdepth[4])+" "+str(pmaf[4])+" "+str(pdepth[5])+" "+str(pmaf[5])+" "+str(pdepth[6])+" "+str(pmaf[6])+" "+str(pdepth[7])+" "+str(pmaf[7]))
-    MAF_file.write("\n")
-
-muts_all = sets.Set(maf1.keys()) | sets.Set(maf2.keys()) | sets.Set(maf3.keys()) | sets.Set(maf4.keys()) |sets.Set(maf5.keys()) | sets.Set(maf6.keys()) |sets.Set(maf7.keys()) | sets.Set(maf8.keys())
-
-absent1 = muts_all-sets.Set(maf1.keys())
-absent2 = muts_all-sets.Set(maf2.keys())
-absent3 = muts_all-sets.Set(maf3.keys())
-absent4 = muts_all-sets.Set(maf4.keys())
-absent5 = muts_all-sets.Set(maf5.keys())
-absent6 = muts_all-sets.Set(maf6.keys())
-absent7 = muts_all-sets.Set(maf7.keys())
-absent8 = muts_all-sets.Set(maf8.keys())
-
-maf1 = missingDepth(maf1,absent1,seq_depth)
-maf2 = missingDepth(maf2,absent2,seq_depth)
-maf3 = missingDepth(maf3,absent3,seq_depth)
-maf4 = missingDepth(maf4,absent4,seq_depth)
-maf5 = missingDepth(maf5,absent5,seq_depth)
-maf6 = missingDepth(maf6,absent6,seq_depth)
-maf7 = missingDepth(maf7,absent7,seq_depth)
-maf8 = missingDepth(maf8,absent8,seq_depth)
-
-for mt in list(muts_all):
-    MAF_file.write(str(mt)+" "+"0"+" "+str(maf1[mt][0])+" "+str(maf1[mt][1])+" "+str(maf2[mt][0])+" "+str(maf2[mt][1])+" "+str(maf3[mt][0])+" "+str(maf3[mt][1])+" "+str(maf4[mt][0])+" "+str(maf4[mt][1])+" "+str(maf5[mt][0])+" "+str(maf5[mt][1])+" "+str(maf6[mt][0])+" "+str(maf6[mt][1])+" "+str(maf7[mt][0])+" "+str(maf7[mt][1])+" "+str(maf8[mt][0])+" "+str(maf8[mt][1]))
-    MAF_file.write("\n")
 
