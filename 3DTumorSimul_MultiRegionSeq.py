@@ -572,17 +572,18 @@ deme_size = int(sys.argv[1])        # the deme size
 mut_rate = float(sys.argv[2])       # the neutral mutation rate at whole exonic region
 adv_rate = float(sys.argv[3])       # the advantageous mutation rate at each cell generation
 s_coef = float(sys.argv[4])         # the selection coefficient
-repl = int(sys.argv[5])             # replication of simulation
+meta_init_primary_size = int(sys.argv[5])         # metastasis time
+repl = int(sys.argv[6])             # replication of simulation
 
 purity = 1                          # Tumor purity
 rd = 60                             # the side length of the 3D space
-meta_init_primary_size = pow(10, 4) # The deme size of primary when metastasis happend
-# final_tumor_size = pow(10,9)        # the number of cells in the final tumor
-final_tumor_size = pow(10,7)        # the number of cells in the final tumor
+# meta_init_primary_size = pow(10, 3) # The deme size of primary when metastasis happend
+final_tumor_size = pow(10,9)        # the number of cells in the final tumor
+# final_tumor_size = pow(10,7)        # the number of cells in the final tumor
 final_deme_number = final_tumor_size/deme_size    # the final number of demes in the tumor
 birth_rate = 0.55                   # the birth probability at each cell generation during tumor growth
 npub=100                            # the number of public mutation to be generated
-seq_depth=80                        # the average sequencing depth
+seq_depth=80                       # the average sequencing depth
 percentage = int(s_coef*100)        # the percentage form of the selection
 
 mut_id = 0
@@ -612,7 +613,7 @@ meta_space, meta_current_keys, mut_id, mutlineage, meta_current_deme_number, met
 meta_periphery = get_periphery(meta_space, meta_current_keys)
 
 # Output
-output_filename = "simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+".txt"
+output_filename = "simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"meta_init"+str(meta_init_primary_size)+".txt"
 write_maf(primary_periphery, meta_periphery, primary_space, meta_space, mutlineage, seq_depth, purity, output_filename)
 
 
