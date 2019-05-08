@@ -1,7 +1,7 @@
 # VirtualTumorMetastasis
-The script simulates tumor growth and tumor metastasis. Rewritten from Zheng Hu's VirtualTumorEvolution code.
+The script `3DTumorSimulMetastasis.py` simulates tumor growth and metastasis. It was adapted from Zheng Hu's [VirtualTumorEvolution](https://github.com/cancersysbio/VirtualTumorEvolution).
 
-The script outputs multi-region sequencing results of primary and metastatic lesions and high frequency mutations in the tumor cross section Deme of the primary and metastatic lesions.
+The output of the script includes the multi-region sequencing results of primary and metastatic lesions and high frequency mutations of each Deme in the cross section of the primary and metastatic lesions.
 
 To run the script:
 ```
