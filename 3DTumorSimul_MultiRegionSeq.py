@@ -1,20 +1,34 @@
 #! /usr/bin/python
 
-###################################################################################
-## A Python script to simulate 3D tumor growth and multi-region sequencing data  ##
-## via an agent-based model. Deme subdivision is assumed in order to model cell  ##
-## mixing and spatial contraint.                                                 ##
-##                                                                               ##
-## Spatial model: pripheral growth                                               ##
-## Author: Zheng Hu in Curtis lab@Stanford                                       ##
-## Release Date: 2/20/2017                                                       ##
-###################################################################################
+##
+## USAGE:
+##   This script is used to simulate sequencing data from paired primary and metastasis.
+##
+## REF:
+##   The script is modified from https://github.com/cancersysbio/VirtualTumorEvolution.
+##   Original Description:
+##   ################################################################################
+##   A Python script to simulate 3D tumor growth and multi-region sequencing data  ##
+##   via an agent-based model. Deme subdivision is assumed in order to model cell  ##
+##   mixing and spatial contraint.                                                 ##
+##                                                                                 ##
+##   Spatial model: pripheral growth                                               ##
+##   Author: Zheng Hu in Curtis lab@Stanford                                       ##
+##   Release Date: 2/20/2017                                                       ##
+##   ################################################################################
+##
+## AUTHOR: 
+##   Wenjie Sun, sunwjie@gmail.com 
+##
+## DATE:
+##   4/14/2019
 
 
 import sys,os,math,random
 import numpy as np
 from collections import Counter
 import sets
+import math
 
 class deme():
     def __init__(self):
@@ -80,16 +94,19 @@ def traceLineage(mlineage,mutid):
     return trace
 
     
-def lowerORupper(value):
+def get_ceil(value): 
     """
     A function to choose the upper or lower integral value given a non-integral number
     """
-    lower_int = int(value)
-    upper_int = lower_int+1
-    if random.random() < value-lower_int:
-        return upper_int
-    else:
-        return lower_int
+    ceil_int = int(math.ceil(value))
+    return ceil_int
+#     lower_int = int(value)
+#     upper_int = lower_int+1
+#     if random.random() < value-lower_int:
+#         return upper_int
+#     else:
+#         return lower_int
+
 
 def initiateFirstDeme(maxsize,lineage,current_id):
     """
@@ -115,7 +132,7 @@ def initiateFirstDeme(maxsize,lineage,current_id):
         #number of dividing cells of neutral lineage in this generation. The other cells will die in the next generation
         neu_list = random.sample(neu_list,neu_divcells)*2
         if n2 > 0:
-            adv_divcells = lowerORupper(n2*birth_rate*(1+s_coef))   
+            adv_divcells = get_ceil(n2*birth_rate*(1+s_coef))   
             #number of dividing cells of advantageous lineage in this generation        
             adv_list = random.sample(adv_list,adv_divcells)*2
         n1,n2 = len(neu_list),len(adv_list)
@@ -167,10 +184,11 @@ def demeGrowthFission(neu_list,adv_list,lineage,current_id,current_deme_number):
     current_deme_size = len(neu_list)+len(adv_list)
     while current_deme_size < 2*deme_size:                          #when the deme size doubles, it will split into two offspring demes
         n1,n2 = len(neu_list),len(adv_list)
-        neu_divcells =  lowerORupper(n1*birth_rate)                 #number of dividing cells in this generation
+        neu_divcells =  get_ceil(n1*birth_rate)                 #number of dividing cells in this generation
         neu_list = random.sample(neu_list,neu_divcells)*2
+        
         if n2 > 0:
-            adv_divcells =  lowerORupper(n2*birth_rate*(1+s_coef))  #number of dividing cells in this generation
+            adv_divcells =  get_ceil(n2*birth_rate*(1+s_coef))  #number of dividing cells in this generation
             adv_list = random.sample(adv_list,adv_divcells)*2
         n1,n2 = len(neu_list),len(adv_list)
         current_deme_size = n1+n2
@@ -383,9 +401,9 @@ def get_periphery(space, current_keys):
                 break
     return periphery
 
-def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, meta_init_primary_size = 0):   
+def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, meta_init_primary_deme_size = 0, meta_cell_n = 0):   
     """
-    Grow the tumor, if the meta_init_primary_size == 0, no meta init
+    Grow the tumor, if the meta_init_primary_deme_size == 0, no meta init
     """
     space = createLattice(rd)
     space[(rd,rd,rd)] = deme()                      #initiate the space with a empty deme in the center site (rd,rd,rd)
@@ -398,10 +416,11 @@ def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, 
     surface_deme_number =1
     deme_time_generation = 0
     sampled = False
-    if (meta_init_primary_size == 0): 
+    if (meta_init_primary_deme_size < 1): 
         sampled = True
 
     while current_deme_number < final_deme_number:
+        print "current deme number: " + str(current_deme_number)
         new_keys = []
         for w in range(0,surface_deme_number):             # deme expansion occurs in the surface of a tumor
             ckey = random.choice(current_keys)
@@ -441,14 +460,22 @@ def grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, 
         surface_deme_number = len(surface_keys)
         current_deme_number = len(current_keys)
         deme_time_generation += 1  # plus 1 after generation
-        if (not sampled and current_deme_number >= meta_init_primary_size):
-            # Set it is already sampled
+        if ((not sampled) and (current_deme_number >= meta_init_primary_deme_size or current_deme_number >= final_deme_number)):
             sampled = True
             meta_key = random.choice(surface_keys)
-            meta_deme = space[meta_key]
+            meta_deme = deme()
+            meta_deme.present = 1
+            meta_deme_temp = space[meta_key]
+            neu_n = len(meta_deme_temp.background)
+            adv_n = len(meta_deme_temp.advant)
+            meta_neu_n = int(math.ceil(float(meta_cell_n) / (neu_n + adv_n) * neu_n))
+            meta_deme.background = list(np.random.choice(meta_deme_temp.background, meta_neu_n))
+#             print(np.random.choice(meta_deme_temp.background, meta_neu_n))
+            if (adv_n > 0):
+                meta_advant_n = int(meta_cell_n - meta_neu_n)
+                meta_deme.advant = list(np.random.choice(meta_deme_temp.advant, meta_advant_n))
 
-
-    if (meta_init_primary_size == 0):
+    if (meta_init_primary_deme_size == 0):
         return space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation
     else:
         return space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation, meta_deme 
@@ -573,17 +600,18 @@ mut_rate = float(sys.argv[2])       # the neutral mutation rate at whole exonic 
 adv_rate = float(sys.argv[3])       # the advantageous mutation rate at each cell generation
 s_coef = float(sys.argv[4])         # the selection coefficient
 meta_init_primary_size = int(sys.argv[5])         # metastasis time
-repl = int(sys.argv[6])             # replication of simulation
+meta_cell_n = int(sys.argv[6])
+repl = int(sys.argv[7])             # replication of simulation
 
 purity = 1                          # Tumor purity
 rd = 60                             # the side length of the 3D space
-# meta_init_primary_size = pow(10, 3) # The deme size of primary when metastasis happend
+meta_init_primary_deme_size = meta_init_primary_size/deme_size # The deme size of primary when metastasis happend
 final_tumor_size = pow(10,9)        # the number of cells in the final tumor
-# final_tumor_size = pow(10,7)        # the number of cells in the final tumor
+# final_tumor_size = pow(10,6)        # the number of cells in the final tumor
 final_deme_number = final_tumor_size/deme_size    # the final number of demes in the tumor
 birth_rate = 0.55                   # the birth probability at each cell generation during tumor growth
 npub=100                            # the number of public mutation to be generated
-seq_depth=80                       # the average sequencing depth
+seq_depth=50                       # the average sequencing depth
 percentage = int(s_coef*100)        # the percentage form of the selection
 
 mut_id = 0
@@ -596,7 +624,7 @@ mutlineage = ['0']                  # the lineage tracer
 first_neu,first_adv,mut_id,mutlineage = initiateFirstDeme(deme_size,mutlineage,mut_id)  
 
 # Grow
-primary_space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation, meta_deme = grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, meta_init_primary_size)
+primary_space, current_keys, mut_id, mutlineage, current_deme_number, deme_time_generation, meta_deme = grow_tumor(first_neu, first_adv, mut_id, mutlineage, rd, final_deme_number, meta_init_primary_deme_size, meta_cell_n)
 
 # Get periphery locations
 primary_periphery = get_periphery(primary_space, current_keys)
@@ -613,23 +641,41 @@ meta_space, meta_current_keys, mut_id, mutlineage, meta_current_deme_number, met
 meta_periphery = get_periphery(meta_space, meta_current_keys)
 
 # Output
-output_filename = "simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"meta_init"+str(meta_init_primary_size)+".txt"
+output_filename = "simulMRS_deme"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"meta_init"+str(meta_init_primary_size)+"meta_cell_n"+str(meta_cell_n)+"depth"+str(seq_depth)+".txt"
 write_maf(primary_periphery, meta_periphery, primary_space, meta_space, mutlineage, seq_depth, purity, output_filename)
 
 
 ####visulization of spatial clonal structure in the central plane###
-#central_plane = []
-#for key in current_keys:
-#    if key[2] == rd:
-#        central_plane += [key]
+## For primary tumor
+central_plane = []
+for key in current_keys:
+    if key[2] == rd:
+        central_plane += [key]
 
-#print "# of demes on the central plane=",len(central_plane)
-#map_file = open("CloneMap3D_peri_u"+str(mu)+"_birth_rate"+str(birth_rate)+"_s"+str(s_coef)+"_"+str(repl)+".txt","w")
-#map_file.write("x"+" "+"y"+" "+"z"+" "+"lineage")
-#map_file.write("\n")
-#for key in central_plane:
-#    cur_muts = highMuts(space,key,mutlineage,0.4)
-#    cur_lineage = lineageDashLink(sorted(cur_muts))
-#    map_file.write(str(key[0])+" "+str(key[1])+" "+str(key[2])+" "+str(cur_lineage))
-#    map_file.write("\n")
+print "# of demes on the central plane=",len(central_plane)
+primary_map_file = open("CloneMap3D_peri_u"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"meta_init"+str(meta_init_primary_size)+"meta_cell_n"+str(meta_cell_n)+"depth"+str(seq_depth)+"_primary.txt", "w")
+primary_map_file.write("x"+" "+"y"+" "+"z"+" "+"lineage")
+primary_map_file.write("\n")
+for key in central_plane:
+    cur_muts = highMuts(primary_space,key,mutlineage,0.4)
+    cur_lineage = lineageDashLink(sorted(cur_muts))
+    primary_map_file.write(str(key[0])+" "+str(key[1])+" "+str(key[2])+" "+str(cur_lineage))
+    primary_map_file.write("\n")
+primary_map_file.close()
 
+## For metastasis tumor
+central_plane = []
+for key in meta_current_keys:
+    if key[2] == rd:
+        central_plane += [key]
+
+print "# of demes on the central plane=",len(central_plane)
+meta_map_file = open("CloneMap3D_peri_u"+str(deme_size)+"_s"+str(percentage)+"percent_8samples_u"+str(mut_rate)+"_"+str(repl)+"meta_init"+str(meta_init_primary_size)+"meta_cell_n"+str(meta_cell_n)+"depth"+str(seq_depth)+"_metastasis_.txt", "w")
+meta_map_file.write("x"+" "+"y"+" "+"z"+" "+"lineage")
+meta_map_file.write("\n")
+for key in central_plane:
+    cur_muts = highMuts(meta_space,key,mutlineage,0.4)
+    cur_lineage = lineageDashLink(sorted(cur_muts))
+    meta_map_file.write(str(key[0])+" "+str(key[1])+" "+str(key[2])+" "+str(cur_lineage))
+    meta_map_file.write("\n")
+meta_map_file.close()
