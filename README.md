@@ -15,7 +15,7 @@ python2 3DTumorSimulMetastasis.py 5000 0.6 0.00001 0.01 1000000 1 0
 								  | Batch ID
 ```
 
-# The REDE of Zheng Hu's VirtualTumorEvolution code:
+# The README of Zheng Hu's VirtualTumorEvolution repo:
 
 ### VirtualTumorEvolution
 A Python script to simulate 3D tumor growth and multi-region sequencing data 
