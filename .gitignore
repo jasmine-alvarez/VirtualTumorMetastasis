@@ -1,2 +1,7 @@
-Clone*
-simulMRS*
+code/
+data/*
+!data/COSMIC_CGC.somatic.dict
+output/*
+!output/example_output.with_mut_name.txt
+.Rproj.user
+VirtualTumorMetastasis.Rproj

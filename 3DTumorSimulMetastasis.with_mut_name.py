@@ -32,12 +32,24 @@ import math
 # New packages
 import random
 import string
+import pickle
 
 class deme():
     def __init__(self):
         self.present= 0         ## whether the deme is empty or occupied: 0-empty;1-occupied
         self.background = []    ## the background founder lineage after tumor tranformation
         self.advant = []        ## the advantageous cells
+
+# New functions
+def create_random_mut(current_id):
+    """
+    For each new mutation randomly select chr, position, ref, and alt alleles recorded in output file.
+    """
+    mut_dict[str(current_id)] = [random.choice(chr_dict.keys())]
+    mut_dict[str(current_id)].append(chr_dict[mut_dict[str(current_id)][0]][0])
+    mut_dict[str(current_id)].append(random.choice(range(chr_dict[mut_dict[str(current_id)][0]][1],chr_dict[mut_dict[str(current_id)][0]][2]+1)))
+
+# Previous functions
 
 def createLattice(d):
     """
@@ -154,7 +166,7 @@ def initiateFirstDeme(maxsize,lineage,current_id):
                 for xn in range(0,nmut):
                     current_id += 1
                     if str(current_id) not in mut_dict:
-                        mut_dict[str(current_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                        create_random_mut(str(current_id))
                     lineage += [neu_list[x1]]
                 neu_list[x1] = mut_str
         if n2 > 0:
@@ -170,14 +182,14 @@ def initiateFirstDeme(maxsize,lineage,current_id):
                 for xn in range(0,nmut):
                     current_id += 1
                     if str(current_id) not in mut_dict:
-                        mut_dict[str(current_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                        create_random_mut(str(current_id))
                     lineage += [adv_list[x2]]
                 adv_list[x2] = mut_str
         
         if random.random() < adv_rate*n1:                           # occurence of advantageous mutation on the neutral lineage
             current_id += 1
             if str(current_id) not in mut_dict:
-                mut_dict[str(current_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                create_random_mut(str(current_id))
             current_n1 = len(neu_list)
             lineage += [str(neu_list[current_n1-1])]
             adv_list += [str(current_id)]
@@ -215,7 +227,7 @@ def demeGrowthFission(neu_list,adv_list,lineage,current_id,current_deme_number):
                     for xn in range(0,nmut):
                         current_id += 1
                         if str(current_id) not in mut_dict:
-                            mut_dict[str(current_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                            create_random_mut(str(current_id))
                         lineage += [neu_list[x1]]
                     neu_list[x1] = mut_str
             if n2 > 0:
@@ -231,14 +243,14 @@ def demeGrowthFission(neu_list,adv_list,lineage,current_id,current_deme_number):
                     for xn in range(0,nmut):
                         current_id += 1
                         if str(current_id) not in mut_dict:
-                            mut_dict[str(current_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                            create_random_mut(str(current_id))
                         lineage += [adv_list[x2]]
                     adv_list[x2] = mut_str
             
             if random.random() < adv_rate*n1:
                 current_id += 1
                 if str(current_id) not in mut_dict:
-                    mut_dict[str(current_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                    create_random_mut(str(current_id))
                 current_n1 = len(neu_list)
                 lineage += [str(neu_list[current_n1-1])]
                 adv_list += [str(current_id)]
@@ -571,12 +583,12 @@ def write_maf(primary_periphery, meta_periphery, primary_space, meta_space, mutl
     maf8 = seqProcessing(meta_space,tissue8,mutlineage,2,seq_depth,1)
 
     MAF_file = open(file_name, "w")
-    MAF_file.write("mut_id"+" "+"mut_name"+" "+"public"+" "+"depth1"+" "+"maf1"+" "+"depth2"+" "+"maf2"+" "+"depth3"+" "+"maf3"+" "+"depth4"+" "+"maf4"+" "+"depth5"+" "+"maf5"+" "+"depth6"+" "+"maf6"+" "+"depth7"+" "+"maf7"+" "+"depth8"+" "+"maf8")
+    MAF_file.write("gene"+" "+"chr"+" "+"pos"+" "+"public"+" "+"depth1"+" "+"maf1"+" "+"depth2"+" "+"maf2"+" "+"depth3"+" "+"maf3"+" "+"depth4"+" "+"maf4"+" "+"depth5"+" "+"maf5"+" "+"depth6"+" "+"maf6"+" "+"depth7"+" "+"maf7"+" "+"depth8"+" "+"maf8")
     MAF_file.write("\n")
 
     for k in range(0,npub):
         pdepth,pmaf = pubMutGenerator(8,2,seq_depth, purity)
-        MAF_file.write("0"+" "+"public"+" "+"1"+" "+str(pdepth[0])+" "+str(pmaf[0])+" "+str(pdepth[1])+" "+str(pmaf[1])+" "+str(pdepth[2])+" "+str(pmaf[2])+" "+str(pdepth[3])+" "+str(pmaf[3])+" "+str(pdepth[4])+" "+str(pmaf[4])+" "+str(pdepth[5])+" "+str(pmaf[5])+" "+str(pdepth[6])+" "+str(pmaf[6])+" "+str(pdepth[7])+" "+str(pmaf[7]))
+        MAF_file.write(" "+" "+" "+" "+" "+" "+"1"+" "+str(pdepth[0])+" "+str(pmaf[0])+" "+str(pdepth[1])+" "+str(pmaf[1])+" "+str(pdepth[2])+" "+str(pmaf[2])+" "+str(pdepth[3])+" "+str(pmaf[3])+" "+str(pdepth[4])+" "+str(pmaf[4])+" "+str(pdepth[5])+" "+str(pmaf[5])+" "+str(pdepth[6])+" "+str(pmaf[6])+" "+str(pdepth[7])+" "+str(pmaf[7]))
         MAF_file.write("\n")
 
     muts_all = sets.Set(maf1.keys()) | sets.Set(maf2.keys()) | sets.Set(maf3.keys()) | sets.Set(maf4.keys()) |sets.Set(maf5.keys()) | sets.Set(maf6.keys()) |sets.Set(maf7.keys()) | sets.Set(maf8.keys())
@@ -602,11 +614,9 @@ def write_maf(primary_periphery, meta_periphery, primary_space, meta_space, mutl
     maf8 = missingDepth(maf8,absent8,seq_depth)
 
     for mt in list(muts_all):
-        MAF_file.write(str(mt)+" "+mut_dict[str(mt)]+" "+"0"+" "+str(maf1[mt][0])+" "+str(maf1[mt][1])+" "+str(maf2[mt][0])+" "+str(maf2[mt][1])+" "+str(maf3[mt][0])+" "+str(maf3[mt][1])+" "+str(maf4[mt][0])+" "+str(maf4[mt][1])+" "+str(maf5[mt][0])+" "+str(maf5[mt][1])+" "+str(maf6[mt][0])+" "+str(maf6[mt][1])+" "+str(maf7[mt][0])+" "+str(maf7[mt][1])+" "+str(maf8[mt][0])+" "+str(maf8[mt][1]))
+        MAF_file.write(str(mut_dict[str(mt)][0])+" "+str(mut_dict[str(mt)][1])+" "+str(mut_dict[str(mt)][2])+" "+"0"+" "+str(maf1[mt][0])+" "+str(maf1[mt][1])+" "+str(maf2[mt][0])+" "+str(maf2[mt][1])+" "+str(maf3[mt][0])+" "+str(maf3[mt][1])+" "+str(maf4[mt][0])+" "+str(maf4[mt][1])+" "+str(maf5[mt][0])+" "+str(maf5[mt][1])+" "+str(maf6[mt][0])+" "+str(maf6[mt][1])+" "+str(maf7[mt][0])+" "+str(maf7[mt][1])+" "+str(maf8[mt][0])+" "+str(maf8[mt][1]))
         MAF_file.write("\n")
     MAF_file.close()
-
-
 
 ############# Main script to simulate a tumor and multi-region sequencing data #########
 ### Parameter intiation ###
@@ -622,7 +632,7 @@ purity = 1                          # Tumor purity
 rd = 60                             # the side length of the 3D space
 meta_init_primary_deme_size = meta_init_primary_size/deme_size # The deme size of primary when metastasis happend
 #final_tumor_size = pow(10,9)        # the number of cells in the final tumor
-final_tumor_size = pow(10,6)        # the number of cells in the final tumor
+final_tumor_size = pow(10,5)        # the number of cells in the final tumor
 final_deme_number = final_tumor_size/deme_size    # the final number of demes in the tumor
 birth_rate = 0.55                   # the birth probability at each cell generation during tumor growth
 npub=100                            # the number of public mutation to be generated
@@ -633,33 +643,9 @@ mut_id = 0
 mutlineage = ['0']                  # the lineage tracer
 ######################################################################################
 # New step - init dict that will map mut_id keys to mutation names
-chr_dict = dict{
-        'chr1': 248956422,
-        'chr2': 242193529,
-        'chr3': 198295559,
-        'chr4': 190214555,
-        'chr5': 181538159,
-        'chr6': 170805979,
-        'chr7': 159345973,
-        'chr8': 145138636,
-        'chr9': 138394717,
-        'chr10': 133797422,
-        'chr11': 135086622,
-        'chr12': 133275309,
-        'chr13': 114364328,
-        'chr14': 107043718,
-        'chr15': 101991189,
-        'chr16': 90338345,
-        'chr17': 83257441,
-        'chr18': 80373285,
-        'chr19': 58617616,
-        'chr20': 64444167,
-        'chr21': 46709983,
-        'chr22': 50818468,
-        'chrX': 156040895
-        }
+with open('data/COSMIC_CGC.somatic.dict', 'rb') as f:
+    chr_dict = pickle.load(f)
 mut_dict = dict()
-mut_dict[str(mut_id)] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
 
 ## Primary Tumor
 # The growth of the fisrt deme from single transformed cell

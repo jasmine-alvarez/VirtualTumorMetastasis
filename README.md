@@ -1,4 +1,10 @@
-# VirtualTumorMetastasis
+```
+python2 with_mut_name.3DTumorSimulMetastasis.py 500 0.6 0.00001 0.01 1000000 1 0
+```
+
+# The README of Wenjie Sun's VirtualTumorMetastasis repo:
+
+### VirtualTumorMetastasis
 The script `3DTumorSimulMetastasis.py` simulates tumor growth and metastasis. It was adapted from Zheng Hu's [VirtualTumorEvolution](https://github.com/cancersysbio/VirtualTumorEvolution).
 
 The output of the script includes the multi-region sequencing results of primary and metastatic lesions and high frequency mutations of each Deme in the cross section of the primary and metastatic lesions.
